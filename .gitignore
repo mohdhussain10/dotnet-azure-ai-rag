@@ -1,0 +1,53 @@
+## =========================================================================
+## 1. Secrets & Sensitive Configs (CRITICAL - Never commit API keys/DB passwords)
+## =========================================================================
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.Production.json
+*.env
+*.env.*
+!*.env.example
+
+## =========================================================================
+## 2. .NET Core & Visual Studio Build Outputs
+## =========================================================================
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Tt]est[Rr]esult*/
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+## =========================================================================
+## 3. Package Manager & Tooling
+## =========================================================================
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+.dotnet/
+
+## =========================================================================
+## 4. OS Generated Files
+## =========================================================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
