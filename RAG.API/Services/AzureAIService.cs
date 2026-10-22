@@ -1,8 +1,7 @@
-﻿using System.Text.Json;
-using Azure;
+﻿using Azure;
 using Azure.AI.OpenAI;
-using Azure.Search.Documents;
 using OpenAI.Chat;
+using System.Text.Json;
 
 namespace RAG.API.Services
 {

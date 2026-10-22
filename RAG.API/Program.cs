@@ -1,5 +1,7 @@
 using Azure.Storage.Blobs;
+using Microsoft.EntityFrameworkCore;
 using RAG.API.Services;
+using RAG.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +13,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<AzureSearchService>();
 builder.Services.AddScoped<AzureAIService>();
+
+// Register Supabase PostgreSQL DbContext
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("SupabasePostgres")));
 
 builder.Services.AddSingleton(sp =>
 {
@@ -56,3 +62,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
