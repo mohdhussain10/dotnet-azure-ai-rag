@@ -40,6 +40,10 @@ namespace RAG.Infrastructure.Migrations
                     b.Property<string>("FullName")
                         .HasColumnType("text");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

@@ -1,7 +1,11 @@
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using RAG.API.Models;
 using RAG.API.Services;
 using RAG.Infrastructure.Data;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +15,13 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAppConfigurationOptions(builder.Configuration);
 builder.Services.AddScoped<AzureSearchService>();
 builder.Services.AddScoped<AzureAIService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpClient();
+
+
 
 // Register Supabase PostgreSQL DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -20,11 +29,30 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddSingleton(sp =>
 {
-    var config = sp.GetRequiredService<IConfiguration>();
-    var connectionString = config["Azure:BlobStorageConnectionString"];
-    var containerName = config["Azure:BlobContainer"];
+    var connectionString = builder.Configuration["AzureStorage:BlobStorageConnectionString"];
+    var containerName = builder.Configuration["AzureStorage:BlobContainer"];
     return new BlobContainerClient(connectionString, containerName);
 });
+
+// Configure JWT Authentication for Supabase
+var jwtSecret = builder.Configuration["Supabase:JwtSecret"]!;
+var supabaseUrl = builder.Configuration["Supabase:Url"]!;
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidateIssuer = true,
+            ValidIssuer = $"{supabaseUrl.TrimEnd('/')}/auth/v1",
+            ValidateAudience = true,
+            ValidAudience = "authenticated",
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+builder.Services.AddAuthorization();
 
 
 // Configure CORS

@@ -7,6 +7,8 @@
         public string? FullName { get; set; }        // Auto-mapped to 'full_name'
         public DateTime CreatedAt { get; set; }      // Auto-mapped to 'created_at'
 
+        public string Role { get; set; } = "User"; //Default is user
+
         public ICollection<UserDocument> Documents { get; set; } = new List<UserDocument>();
     
     }
