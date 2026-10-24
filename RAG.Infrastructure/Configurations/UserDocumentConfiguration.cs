@@ -27,6 +27,8 @@ namespace RAG.Infrastructure.Configurations
                    .WithMany(p => p.Documents)
                    .HasForeignKey(d => d.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasQueryFilter(d => !d.IsDeleted);
         }
     }
 }

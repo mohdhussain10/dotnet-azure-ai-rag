@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RAG.API.DTOs;
 using RAG.API.Services;
-using RAG.Infrastructure.Data;
 
 namespace RAG.API.Controllers
 {
@@ -10,19 +9,10 @@ namespace RAG.API.Controllers
     [ApiController]
     public class AuthenticationController : ControllerBase
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-
-        private readonly IConfiguration _config;
-
-        private readonly AppDbContext _dbContext;
-
         private readonly IAuthService _authService;
 
-        public AuthenticationController(IHttpClientFactory httpClientFactory, IConfiguration config, AppDbContext dbContext, IAuthService authService)
+        public AuthenticationController(IAuthService authService)
         {
-            _httpClientFactory = httpClientFactory;
-            _config = config;
-            _dbContext = dbContext;
             _authService = authService;
         }
 
@@ -63,6 +53,12 @@ namespace RAG.API.Controllers
             return Ok(response.Data);
         }
 
+        /// <summary>
+        /// Login
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         [HttpPost("Login")]
         [AllowAnonymous]
         public async Task<IActionResult> LogIn([FromBody] UserLogin request, CancellationToken cancellationToken)

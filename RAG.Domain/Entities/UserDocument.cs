@@ -19,5 +19,10 @@ namespace RAG.Domain.Entities
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
         public Profile? Profile { get; set; }
+
+        public bool IsDeleted { get; set; } = false;
+
+        public DateTime? DeletedAt { get; set; }
+        
     }
 }

@@ -20,6 +20,8 @@ builder.Services.AddScoped<AzureSearchService>();
 builder.Services.AddScoped<AzureAIService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 
 
