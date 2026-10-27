@@ -23,6 +23,18 @@
         public string OpenAIKey { get; init; } = string.Empty;
     }
 
+    public record GeminiOptions
+    {
+        public const string SectionName = "Gemini";
+
+        public string ApiKey { get; init; } = string.Empty;
+
+        public string EmbeddingDeploymentName { get; init; } = "gemini-embedding-001";
+
+        public string BuildUrl(string endPoint) => $"https://generativelanguage.googleapis.com/v1beta/models/{EmbeddingDeploymentName}:{endPoint}?key={ApiKey}";
+
+    }
+
     public static class OptionsExtensions
     {
         public static IServiceCollection AddAppConfigurationOptions(
@@ -35,8 +47,8 @@
             services.Configure<AzureStorageOptions>(
                 configuration.GetSection(AzureStorageOptions.SectionName));
 
-            //services.Configure<EmbeddingOptions>(
-            //    configuration.GetSection(EmbeddingOptions.SectionName));
+            services.Configure<GeminiOptions>(
+                configuration.GetSection(GeminiOptions.SectionName));
 
             return services;
         }

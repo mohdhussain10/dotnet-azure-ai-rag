@@ -23,6 +23,13 @@ namespace RAG.Domain.Entities
         public bool IsDeleted { get; set; } = false;
 
         public DateTime? DeletedAt { get; set; }
-        
+
+        /// <summary>
+        /// it stores SHA256 hash of file content
+        /// To validate user should not upload same file multiple times
+        /// </summary>
+        public string? ContentHash { get; set; }
+
+
     }
 }

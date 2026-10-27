@@ -2,6 +2,7 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using RAG.API.Controllers;
 using RAG.API.Models;
 using RAG.API.Services;
 using RAG.Infrastructure.Data;
@@ -16,12 +17,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAppConfigurationOptions(builder.Configuration);
-builder.Services.AddScoped<AzureSearchService>();
 builder.Services.AddScoped<AzureAIService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<ITextExtractorService, TextExtractorService>();
+builder.Services.AddScoped<IFileService, FileService>();
+
+
+builder.Services.AddSingleton<IChunkingService, ChunkingService>();
+builder.Services.AddHttpClient<IEmbeddingService, GeminiEmbeddingService>();
+builder.Services.AddScoped<IAzureSearchService, AzureSearchService>();
 
 
 
@@ -36,16 +43,15 @@ builder.Services.AddSingleton(sp =>
     return new BlobContainerClient(connectionString, containerName);
 });
 
-// Configure JWT Authentication for Supabase
-var jwtSecret = builder.Configuration["Supabase:JwtSecret"]!;
+// Configure JWT Authentication for Supabase (Automatic JWKS validation for ES256/RS256)
 var supabaseUrl = builder.Configuration["Supabase:Url"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.Authority = $"{supabaseUrl.TrimEnd('/')}/auth/v1";
+        options.MetadataAddress = $"{supabaseUrl.TrimEnd('/')}/auth/v1/.well-known/openid-configuration";
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ValidateIssuer = true,
             ValidIssuer = $"{supabaseUrl.TrimEnd('/')}/auth/v1",
             ValidateAudience = true,
@@ -54,6 +60,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
+
 builder.Services.AddAuthorization();
 
 
@@ -87,6 +94,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowSpecificOrigin");
 
+app.UseAuthentication(); 
 app.UseAuthorization();
 
 app.MapControllers();

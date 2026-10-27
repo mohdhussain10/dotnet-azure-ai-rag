@@ -8,6 +8,7 @@ namespace RAG.API.Controllers
     [ApiController]
     public class FileUploadController : ControllerBase
     {
+        
         private readonly IFileService _fileService;
 
         public FileUploadController(IFileService fileService)
@@ -30,7 +31,7 @@ namespace RAG.API.Controllers
             return Ok(response.Data);
         }
 
-        [HttpPost("Remove")]
+        [HttpPost("Remove/{documentId:guid}")]
         [Authorize]
         public async Task<IActionResult>RemoveAsync(Guid documentId, CancellationToken cancellationToken)
         {

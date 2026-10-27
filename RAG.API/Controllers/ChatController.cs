@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using RAG.API.Services;
 
 namespace RAG.API.Controllers
@@ -17,18 +16,18 @@ namespace RAG.API.Controllers
             _aiService = aiService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] ChatRequest request)
-        {
-            if (string.IsNullOrWhiteSpace(request.Message))
-                return BadRequest("Question is required.");
+        //[HttpPost]
+        //public async Task<IActionResult> Post([FromBody] ChatRequest request)
+        //{
+        //    if (string.IsNullOrWhiteSpace(request.Message))
+        //        return BadRequest("Question is required.");
 
-            var relevantChunks = await _searchService.SearchRelevantChunksAsync(request.Message);
-            var context = string.Join("\n", relevantChunks);
-            var answer = await _aiService.AskQuestionAsync(context, request.Message);
+        //    var relevantChunks = await _searchService.SearchRelevantChunksAsync(request.Message);
+        //    var context = string.Join("\n", relevantChunks);
+        //    var answer = await _aiService.AskQuestionAsync(context, request.Message);
 
-            return Ok(new { question = request.Message, answer });
-        }
+        //    return Ok(new { question = request.Message, answer });
+        //}
     }
 }
 public class ChatRequest
