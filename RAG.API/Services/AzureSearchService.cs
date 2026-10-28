@@ -3,6 +3,7 @@ using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 using Azure.Search.Documents.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 using RAG.API.Models;
 
 namespace RAG.API.Services
@@ -32,6 +33,17 @@ namespace RAG.API.Services
         /// <returns></returns>
         Task DeleteChunksByDocumentIdAsync(Guid documentId, CancellationToken cancellationToken = default);
 
+
+        /// <summary>
+        /// To search matching chunks from Azure AI search using Hybrid search
+        /// </summary>
+        /// <param name="queryText"></param>
+        /// <param name="queryVector"></param>
+        /// <param name="userId"></param>
+        /// <param name="top"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task<List<DocumentChunkModel>> SearchRelevantChunksAsync(string queryText, float[] queryVector, string userId, int top = 4, CancellationToken cancellationToken = default); 
     }
     public class AzureSearchService : IAzureSearchService
     {
@@ -186,6 +198,55 @@ namespace RAG.API.Services
             {
                 _logger.LogError(ex, "Failed to delete search index chunks for document {DocumentId}", documentId);
             }
+        }
+
+        /// <summary>
+        /// To search matching chunks from Azure AI search using Hybrid search
+        /// </summary>
+        /// <param name="queryText"></param>
+        /// <param name="queryVector"></param>
+        /// <param name="userId"></param>
+        /// <param name="top"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task<List<DocumentChunkModel>> SearchRelevantChunksAsync(string queryText, float[] queryVector, string userId, int top = 4, CancellationToken cancellationToken = default)
+        {
+            //Add vector query for 768-dim embeddings
+            var vectorQuery = new VectorizedQuery(queryVector)
+            {
+                KNearestNeighborsCount = top,
+                Fields = { "ContentVector" }
+            };
+
+            //As we are passing vectorQuery and plain query text both to azure ai search.
+            //it will perform hybrid search(Means : it will do full text search
+            //as well as vector similarity using cosine)
+            var searchOptions = new SearchOptions()
+            {
+                Filter = $"UserId eq '{userId}'",
+                Size = top,// it specifies top 4 relevant results to return
+                Select = { "Id", "DocumentId", "UserId", "FileName", "Content", "ChunkIndex" },
+                VectorSearch = new VectorSearchOptions
+                {
+                    Queries = { vectorQuery } // to perform vectorized search
+                }
+            };
+
+            // Hybrid search: queryText performs full-text BM25 search, vectorQuery performs semantic vector search
+            var response = await _searchClient.SearchAsync<DocumentChunkModel>(queryText, searchOptions, cancellationToken);
+
+            var results = new List<DocumentChunkModel>();
+
+            await foreach(var searchResult in response.Value.GetResultsAsync())
+            {
+                if (searchResult.Document != null)
+                {
+                    results.Add(searchResult.Document);
+                }
+            }
+
+            return results;
+
         }
     }
 }

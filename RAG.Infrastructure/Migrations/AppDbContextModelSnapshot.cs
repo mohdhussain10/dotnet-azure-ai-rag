@@ -23,6 +23,75 @@ namespace RAG.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("RAG.Domain.Entities.ChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Citations")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ConversationsId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationsId");
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("ChatMessage", "public");
+                });
+
+            modelBuilder.Entity("RAG.Domain.Entities.Conversations", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "UpdatedAt");
+
+                    b.ToTable("Conversations", "public");
+                });
+
             modelBuilder.Entity("RAG.Domain.Entities.Profile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -92,6 +161,32 @@ namespace RAG.Infrastructure.Migrations
                     b.ToTable("user_documents", "public");
                 });
 
+            modelBuilder.Entity("RAG.Domain.Entities.ChatMessage", b =>
+                {
+                    b.HasOne("RAG.Domain.Entities.Conversations", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RAG.Domain.Entities.Conversations", null)
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationsId");
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("RAG.Domain.Entities.Conversations", b =>
+                {
+                    b.HasOne("RAG.Domain.Entities.Profile", "Profile")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Profile");
+                });
+
             modelBuilder.Entity("RAG.Domain.Entities.UserDocument", b =>
                 {
                     b.HasOne("RAG.Domain.Entities.Profile", "Profile")
@@ -101,6 +196,11 @@ namespace RAG.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Profile");
+                });
+
+            modelBuilder.Entity("RAG.Domain.Entities.Conversations", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("RAG.Domain.Entities.Profile", b =>

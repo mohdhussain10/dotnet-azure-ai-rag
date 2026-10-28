@@ -10,6 +10,10 @@ namespace RAG.Infrastructure.Data
         public DbSet<Profile> Profiles => Set<Profile>();
         public DbSet<UserDocument> UserDocuments => Set<UserDocument>();
 
+        public DbSet<Conversations> Conversations => Set<Conversations>();
+
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

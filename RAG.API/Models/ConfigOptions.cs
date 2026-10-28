@@ -1,4 +1,6 @@
-﻿namespace RAG.API.Models
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+
+namespace RAG.API.Models
 {
     public record SupabaseOptions
     {
@@ -31,8 +33,11 @@
 
         public string EmbeddingDeploymentName { get; init; } = "gemini-embedding-001";
 
-        public string BuildUrl(string endPoint) => $"https://generativelanguage.googleapis.com/v1beta/models/{EmbeddingDeploymentName}:{endPoint}?key={ApiKey}";
+        public string ChatModel { get; init; } = "gemini-2.5-flash-lite";
 
+        public string BuildEmbeddingUrl(string endPoint) => $"https://generativelanguage.googleapis.com/v1beta/models/{EmbeddingDeploymentName}:{endPoint}?key={ApiKey}";
+
+        public string BuildChatUrl() => $"https://generativelanguage.googleapis.com/v1beta/models/{ChatModel}:generateContent?key={ApiKey}";
     }
 
     public static class OptionsExtensions

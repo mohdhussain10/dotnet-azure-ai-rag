@@ -38,7 +38,7 @@ namespace RAG.API.Services
         /// <exception cref="InvalidOperationException"></exception>
         public async Task<ReadOnlyMemory<float>> GenerateEmbeddingAsync(string text, CancellationToken cancellationToken = default)
         {
-            var url = _geminiOptions.BuildUrl("embedContent");
+            var url = _geminiOptions.BuildEmbeddingUrl("embedContent");
             var request = new
             {
                 model = $"models/{_geminiOptions.EmbeddingDeploymentName}",
@@ -75,7 +75,7 @@ namespace RAG.API.Services
         {
             if (texts.Count() == 0) return Array.Empty<ReadOnlyMemory<float>>();
 
-            var batchUrl = _geminiOptions.BuildUrl("batchEmbedContents");
+            var batchUrl = _geminiOptions.BuildEmbeddingUrl("batchEmbedContents");
             var finalList = new List<ReadOnlyMemory<float>>();
 
             //Gemini allow max 100 request per batch

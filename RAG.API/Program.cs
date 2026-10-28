@@ -24,6 +24,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ITextExtractorService, TextExtractorService>();
 builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IchatService, ChatService>();
+builder.Services.AddScoped<IGeminiChatService, GeminiChatService>();
+
+
+
 
 
 builder.Services.AddSingleton<IChunkingService, ChunkingService>();
