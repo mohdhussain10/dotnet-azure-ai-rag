@@ -2,11 +2,9 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using RAG.API.Controllers;
 using RAG.API.Models;
 using RAG.API.Services;
 using RAG.Infrastructure.Data;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,16 +24,9 @@ builder.Services.AddScoped<ITextExtractorService, TextExtractorService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IchatService, ChatService>();
 builder.Services.AddScoped<IGeminiChatService, GeminiChatService>();
-
-
-
-
-
 builder.Services.AddSingleton<IChunkingService, ChunkingService>();
 builder.Services.AddHttpClient<IEmbeddingService, GeminiEmbeddingService>();
 builder.Services.AddScoped<IAzureSearchService, AzureSearchService>();
-
-
 
 // Register Supabase PostgreSQL DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
