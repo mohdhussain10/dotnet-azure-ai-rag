@@ -106,3 +106,12 @@
 --HnswAlgorithmConfiguration: Hierarchical Navigable Small World (HNSW), Constructs a multi-layer graph of vectors for fast approximate nearest-neighbor (ANN) lookups.
 --Vectorizers: it is optional parameter. If passed it will allow azure to create vectors on the fly using azure open AI or any custom model
 
+
+
+CI/CD : 
+
+Docker commands : 
+
+    1. # Deletes containers, networks, AND the locally built image:
+       docker compose down --rmi local
+    2. docker compose up --build // It will create image and run container --build will create new image else use old image
