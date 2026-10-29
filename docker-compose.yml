@@ -1,0 +1,41 @@
+#docker-compose file helps to start everything with one command, it have access to docker file and can create image. We can provide environment settings here and everything at one place
+version: '3.8'
+
+services:
+  rag-api:
+    container_name: rag-application-api
+    #to get all the 3 projects. build context is the standard means root and can read all our project files
+    build:
+      context: .
+      dockerfile: RAG.API/Dockerfile
+    ports:
+      # HostPort:ContainerPort
+
+      - "8080:8080"
+    environment:
+      # Set Development so Swagger UI is accessible at http://localhost:8080/swagger
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+
+      # Database
+      - ConnectionStrings__SupabasePostgres=${SUPABASE_POSTGRES_CONN}
+
+      # Supabase Auth
+      - Supabase__Url=${SUPABASE_URL}
+      - Supabase__Key=${SUPABASE_KEY}
+
+      # Gemini AI (Embeddings + Chat)
+      - Gemini__ApiKey=${GEMINI_KEY}
+      - Gemini__EmbeddingDeploymentName=${GEMINI_EMBEDDING_MODEL}
+      - Gemini__ChatModel=${gemini-3.5-flash-lite}
+
+      # Azure Blob Storage
+      - AzureStorage__BlobStorageConnectionString=${AZURE_BLOB_CONN}
+      - AzureStorage__BlobContainer=genaicontainer
+
+      # Azure AI Search
+      - AzureAISearch__Endpoint=${AZURE_SEARCH_ENDPOINT}
+      - AzureAISearch__ApiKey=${AZURE_SEARCH_KEY}
+      - AzureAISearch__IndexName=${rag-documents-index}
+
+    restart: on-failure
