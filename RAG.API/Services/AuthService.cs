@@ -138,14 +138,12 @@ namespace RAG.API.Services
                     return new AuthResponse(false, errorJson);
                 }
                 var authResult = await response.Content.ReadFromJsonAsync<SupabaseAuthResponse>(cancellationToken) ?? new();
-               
-                var user = await _dbContext.Profiles.AsNoTracking().FirstOrDefaultAsync(p => p.Email == request.Email, cancellationToken);
                 return new AuthResponse(true, Data: new
                 {
-                    Id = user?.Id,
-                    FullName = user?.FullName,
-                    email = user?.Email,
-                    accessToken = authResult.AccessToken
+                    Id = authResult?.User?.Id,
+                    FullName = authResult?.User?.UserMetadata?.FullName,
+                    email = authResult?.User?.Email,
+                    accessToken = authResult?.AccessToken
                 });
             }
             catch (Exception ex) 

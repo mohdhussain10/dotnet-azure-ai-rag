@@ -28,6 +28,15 @@ namespace RAG.API.DTOs
 
         [JsonPropertyName("email")]
         public string? Email { get; set; }
+
+        [JsonPropertyName("user_metadata")]
+        public SupabaseUserMetadata? UserMetadata { get; set; }
+    }
+    
+    public class SupabaseUserMetadata
+    {
+        [JsonPropertyName("full_name")]
+        public string? FullName { get; set; }
     }
 
 }
