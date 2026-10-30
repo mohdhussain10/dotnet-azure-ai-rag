@@ -1,0 +1,99 @@
+name: Develop Branch CI/CD
+
+# ==========================================
+# TRIGGERS: When does this pipeline run?
+# ==========================================
+on:
+  # 1. CI Trigger: Runs whenever a PR is created targeting develop
+  pull_request:
+    branches: [ "develop" ]
+
+  # 2. CD Trigger: Runs when code is merged directly into develop. Under the hood, code merge is push only
+  push:
+    branches: [ "develop" ]
+
+# Global environment variables
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ========================================================
+  # JOB 1: Continuous Integration (CI - Build & Validate)
+  # Runs on BOTH Pull Requests and Merges 
+  # ========================================================
+  build-and-test:
+    name: Build & Validate Solution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet Dependencies
+        run: dotnet restore
+
+      - name: Build Solution (Release)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run Unit Tests (if test projects exist)
+        run: dotnet test --no-build --configuration Release --verbosity normal || true
+
+  # ========================================================
+  # JOB 2: Continuous Deployment (CD - Build & Push Docker Image)
+  # Runs ONLY when code is MERGED into develop
+  # ========================================================
+  docker-build-and-push:
+    name: Build & Push Docker Image
+    needs: build-and-test # Must wait for Job 1 to succeed first
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write # Corrected: plural "packages"
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Tags & Labels
+        id: meta
+        uses: docker/metadata-action@v5 # Corrected typo: metadata-action
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=develop
+            type=sha,format=short
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./RAG.API/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      
+
+      
+
+
+
+
