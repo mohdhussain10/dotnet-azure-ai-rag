@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
 using RAG.API.Models;
+using System.Net;
 using System.Text.Json.Serialization;
-
 namespace RAG.API.Services
 {
-
     public interface IGeminiChatService
     {
         Task<string> GenerateGroundedAnswerAsync(string userQuestion, List<DocumentChunkModel> contextChunks,
@@ -30,6 +29,7 @@ namespace RAG.API.Services
 
         public async Task<string> GenerateGroundedAnswerAsync(string userQuestion, List<DocumentChunkModel> contextChunks, List<(string role, string content)> conversationHistory, CancellationToken cancellationToken = default)
         {
+
             var modelName = _geminiOptions.ChatModel;
 
             var contextBuilder = new System.Text.StringBuilder();
@@ -98,15 +98,66 @@ UserQuestion: {userQuestion}";
                     maxOutputTokens = 1000
                 }
             };
+            HttpResponseMessage response;
+            try
+            {
+                response = await _httpClient.PostAsJsonAsync(_geminiOptions.BuildChatUrl(), payload, cancellationToken);
+            }
+            catch (HttpRequestException httpEx)
+            {
+                _logger.LogError(httpEx, "Network connectivity error connecting to Gemini API.");
+                throw new InvalidOperationException("Unable to reach the AI service. Please check your connection and try again.", httpEx);
+            }
+            catch (OperationCanceledException timeoutEx) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogError(timeoutEx, "Gemini API request timed out.");
+                throw new InvalidOperationException("The AI service took too long to respond. Please try again.", timeoutEx);
+            }
 
-            var response = await _httpClient.PostAsJsonAsync(_geminiOptions.BuildChatUrl(), payload, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Gemini API returned error ({StatusCode}): {Body}", response.StatusCode, errorBody);
 
+                switch (response.StatusCode)
+                {
+                    case HttpStatusCode.TooManyRequests:
+                        throw new InvalidOperationException("AI rate limit reached. Please wait 15–30 seconds before asking again.");
+                        
+                    case HttpStatusCode.ServiceUnavailable:
+                    case HttpStatusCode.BadGateway:
+                    case HttpStatusCode.GatewayTimeout:
+                        throw new InvalidOperationException("The AI model is temporarily overloaded. Please try again in a few moments.");
+                    case HttpStatusCode.NotFound:
+                        throw new InvalidOperationException($"The configured chat model '{_geminiOptions.ChatModel}' was not found. Please verify configuration.");
+                    default:
+                        throw new InvalidOperationException("The AI service encountered an error processing your request. Please try again.");
+
+                }
+            }
 
             var result = await response.Content.ReadFromJsonAsync<GeminiGenerateContentResponse>(cancellationToken);
-            var reply = result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
-            return reply ?? "I was unable to generate a response. Please try again.";
+            var candidate = result?.Candidates?.FirstOrDefault();
+            if (candidate == null)
+            {
+                _logger.LogWarning("Gemini returned 200 OK but with 0 candidates.");
+                throw new InvalidOperationException("The AI was unable to generate an answer for this prompt.");
+            }
+            
+            if (candidate.FinishReason?.Equals("SAFETY", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                _logger.LogWarning("Gemini blocked response due to SAFETY filter.");
+                throw new InvalidOperationException("This question could not be answered because it triggered content safety filters.");
+            }
+            var replyText = candidate.Content?.Parts?.FirstOrDefault()?.Text;
+            if (string.IsNullOrWhiteSpace(replyText))
+            {
+                _logger.LogWarning("Gemini returned candidate with empty text. FinishReason: {Reason}", candidate.FinishReason);
+                throw new InvalidOperationException("The AI returned an empty response. Please try rephrasing your question.");
+            }
+            return replyText.Trim();
         }
-         #region Response Models
+        #region Response Models
         private sealed class GeminiGenerateContentResponse
         {
             [JsonPropertyName("candidates")]
@@ -116,6 +167,9 @@ UserQuestion: {userQuestion}";
         {
             [JsonPropertyName("content")]
             public GeminiContent? Content { get; set; }
+
+            [JsonPropertyName("finishReason")]
+            public string? FinishReason { get; set; }
         }
         private sealed class GeminiContent
         {
@@ -127,7 +181,7 @@ UserQuestion: {userQuestion}";
             [JsonPropertyName("text")]
             public string? Text { get; set; }
         }
-       #endregion
+        #endregion
     }
 
 }

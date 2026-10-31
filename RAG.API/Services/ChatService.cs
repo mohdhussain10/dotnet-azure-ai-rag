@@ -4,7 +4,6 @@ using RAG.API.Models;
 using RAG.Domain.Entities;
 using RAG.Infrastructure.Data;
 using System.Text.Json;
-using UglyToad.PdfPig.Fonts.TrueType.Tables.CMapSubTables;
 
 namespace RAG.API.Services
 {
@@ -120,7 +119,6 @@ namespace RAG.API.Services
 
                 _logger.LogInformation("Retrieved {Count} relevant chunks for conversation {ConversationId}",
                     relevantChunks.Count, conversation.Id);
-
                 var llmresponse = await _geminiChatService.GenerateGroundedAnswerAsync(userQuestion: userMessage,
                     contextChunks: relevantChunks, conversationHistory: recentMessages, cancellationToken: cancellationToken);
 
@@ -131,7 +129,6 @@ namespace RAG.API.Services
                     chunkIndex = c.ChunkIndex,
                     preview = c.Content.Length > 150 ? c.Content.Substring(0, 147) + "..." : c.Content
                 }).ToList();
-
                 var userMessageToStore = new ChatMessage
                 {
                     Id = Guid.NewGuid(),
@@ -150,7 +147,6 @@ namespace RAG.API.Services
                     Citations = citations.Count > 0 ? JsonSerializer.Serialize(citations) : null,
                     CreatedAt = DateTime.UtcNow
                 };
-
                 conversation.UpdatedAt = DateTime.UtcNow;
 
                 _dbContext.ChatMessages.AddRange(userMessageToStore, assistantMessageToStore);
@@ -163,7 +159,11 @@ namespace RAG.API.Services
                     answer = llmresponse,
                     citations = citations
                 });
-
+            }
+            catch(InvalidOperationException invalidException)
+            {
+                _logger.LogError(invalidException, "Failed to reach AI service for user {UserId}", userId);
+                return new AuthResponse(false, invalidException.Message);
             }
             catch(Exception ex)
             {
@@ -174,6 +174,12 @@ namespace RAG.API.Services
 
         }
 
+        /// <summary>
+        /// Delete Conversation
+        /// </summary>
+        /// <param name="conversationId"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task<AuthResponse> DeleteConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
         {
             var userId = _currentUserService.UserId;
@@ -182,7 +188,6 @@ namespace RAG.API.Services
 
             if (conversationId == Guid.Empty)
                 return new AuthResponse(false, "Conversation Id is not valid");
-
             try
             {
                 var conversation = await _dbContext.Conversations.FirstOrDefaultAsync(c => c.Id == conversationId && c.UserId == userId.Value, cancellationToken);
@@ -202,16 +207,19 @@ namespace RAG.API.Services
                 _logger.LogError(ex, "Failed to delete conversation {ConversationId}", conversationId);
                 return new AuthResponse(false, "Failed to delete conversation.");
             }
-           
-           
         }
 
+        /// <summary>
+        /// Get Conversation Messages
+        /// </summary>
+        /// <param name="conversationId"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task<AuthResponse> GetConversationMessagesAsync(Guid conversationId, CancellationToken cancellationToken = default)
         {
             var userId = _currentUserService.UserId;
             if (userId == null)
                 return new AuthResponse(false, "User is not authenticated.");
-
             try
             {
                 if(conversationId == Guid.Empty)
@@ -247,6 +255,11 @@ namespace RAG.API.Services
             }
         }
 
+        /// <summary>
+        /// Get conversations
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task<AuthResponse> GetUserConversationsAsync(CancellationToken cancellationToken = default)
         {
             var userId = _currentUserService.UserId;
@@ -270,8 +283,6 @@ namespace RAG.API.Services
                 _logger.LogError(ex, "Failed to fetch conversations for user {UserId}", userId);
                 return new AuthResponse(false, "Failed to load conversations.");
             }
-
-
         }
     }
 }
