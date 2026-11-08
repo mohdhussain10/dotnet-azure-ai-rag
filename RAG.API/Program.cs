@@ -65,17 +65,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin", policy =>
     {
-        policy.WithOrigins("http://localhost:4200") // Allow only the 4200 port
+        policy.WithOrigins("http://localhost:4200", "http://localhost:5173", "http://localhost:3000") 
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 
-    options.AddPolicy("AllowAllOrigins", policy =>
-    {
-        policy.AllowAnyOrigin() // Allow all origins
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
 });
 
 var app = builder.Build();
