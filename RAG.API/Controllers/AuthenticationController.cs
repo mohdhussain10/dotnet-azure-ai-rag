@@ -50,7 +50,7 @@ namespace RAG.API.Controllers
                 }
             }
 
-            return Ok(response.Data);
+            return Ok(response);
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace RAG.API.Controllers
                 return BadRequest(new { message = "Unable to sign in. Please check your credentials and try again." });
             }
 
-            return Ok(response.Data);
+            return Ok(response);
 
         } 
         #endregion
