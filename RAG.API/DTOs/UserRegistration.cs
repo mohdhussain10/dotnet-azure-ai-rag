@@ -1,6 +1,4 @@
-﻿using Azure.Storage.Blobs.Models;
-
-namespace RAG.API.DTOs
+﻿namespace RAG.API.DTOs
 {
     /// <summary>
     /// To Register user in the application
