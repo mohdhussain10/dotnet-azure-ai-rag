@@ -38,16 +38,6 @@ namespace RAG.API.Services
 
     public class FileService : IFileService
     {
-        /// <summary>
-        /// To check Allowed Document Extensions
-        /// </summary>
-        private static HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".pdf", ".docx", ".txt", ".md", ".csv" };
-
-        /// <summary>
-        /// To check file max size
-        /// </summary>
-        private const long MaxFileSize = 25 * 1024 * 1024;
-
         private readonly BlobContainerClient _containerClient;
 
         private readonly ILogger<FileService> _logger;
@@ -62,8 +52,6 @@ namespace RAG.API.Services
         private readonly IEmbeddingService _embeddingService;
 
         private readonly IAzureSearchService _azureSearchService;
-
-
 
 
         public FileService(BlobContainerClient containerClient, ILogger<FileService> logger,
@@ -90,15 +78,9 @@ namespace RAG.API.Services
             {
                 #region Prequisites checks and variables declaration
                 if (userId == null) return new AuthResponse(false, "User is not authenticated.");
-
-                if (file!.Length > MaxFileSize)
-                    return new AuthResponse(false, $"File size exceeds the limit of {MaxFileSize / (1024 * 1024)} MB.");
-
+                
                 var fileExtension = Path.GetExtension(file.FileName);
-                if (string.IsNullOrEmpty(fileExtension) || !AllowedExtensions.Contains(fileExtension))
-                    return new AuthResponse(false, $"Invalid file type. Allowed types: {string.Join(", ", AllowedExtensions)}");
-
-
+                
                 await using var memoryStream = new MemoryStream();
                 await file.CopyToAsync(memoryStream, cancellationToken);
 

@@ -1,6 +1,4 @@
-﻿using Azure.Storage.Blobs.Models;
-
-namespace RAG.API.DTOs
+﻿namespace RAG.API.DTOs
 {
     /// <summary>
     /// To Register user in the application
@@ -14,3 +12,4 @@ namespace RAG.API.DTOs
         public string GetFullName() => string.IsNullOrWhiteSpace(LastName) ? FirstName : $"{FirstName} {LastName}".Trim();
     };
 }
+de
