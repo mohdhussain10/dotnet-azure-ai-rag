@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RAG.API.Services;
 
@@ -11,19 +12,28 @@ namespace RAG.API.Controllers
         
         private readonly IFileService _fileService;
 
-        public FileUploadController(IFileService fileService)
+        private readonly IValidator<IFormFile?> _fileValidator;
+
+        public FileUploadController(IFileService fileService, IValidator<IFormFile?> fileValidator)
         {
             _fileService = fileService;
+            _fileValidator = fileValidator;
         }
 
         [HttpPost("Upload")]
         [Authorize]
         public async Task<IActionResult> UploadAsync(IFormFile? file, CancellationToken cancellationToken)
         {
-            //1. Validate the file presence
-            if (file == null || file.Length == 0) 
-                return BadRequest("No file was uploaded or file is empty.");
+            var validationResult = await _fileValidator.ValidateAsync(file, cancellationToken);
 
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(new
+                {
+                    message = "File validation failed.",
+                    errors = validationResult.ToDictionary()
+                });
+            }
             var response = await _fileService.Upload(file, cancellationToken);
 
             if(!response.Success) return BadRequest(new { message = response.ErrorMessage });

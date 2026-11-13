@@ -1,9 +1,11 @@
 using Azure.Storage.Blobs;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RAG.API.Models;
 using RAG.API.Services;
+using RAG.API.Validator;
 using RAG.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +29,13 @@ builder.Services.AddScoped<IGeminiChatService, GeminiChatService>();
 builder.Services.AddSingleton<IChunkingService, ChunkingService>();
 builder.Services.AddHttpClient<IEmbeddingService, GeminiEmbeddingService>();
 builder.Services.AddScoped<IAzureSearchService, AzureSearchService>();
+
+
+#region Fluent validation
+builder.Services.AddValidatorsFromAssemblyContaining<FileUploadValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+#endregion
 
 // Register Supabase PostgreSQL DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
