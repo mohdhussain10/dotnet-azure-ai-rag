@@ -12,4 +12,3 @@
         public string GetFullName() => string.IsNullOrWhiteSpace(LastName) ? FirstName : $"{FirstName} {LastName}".Trim();
     };
 }
-de
