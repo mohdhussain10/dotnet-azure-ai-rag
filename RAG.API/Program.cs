@@ -30,6 +30,12 @@ builder.Services.AddSingleton<IChunkingService, ChunkingService>();
 builder.Services.AddHttpClient<IEmbeddingService, GeminiEmbeddingService>();
 builder.Services.AddScoped<IAzureSearchService, AzureSearchService>();
 
+#region Outbox & RabbitMQ Services
+builder.Services.AddHostedService<OutboxPublisherService>();
+builder.Services.AddHostedService<FileProcessingConsumerService>();
+
+#endregion
+
 
 #region Fluent validation
 builder.Services.AddValidatorsFromAssemblyContaining<FileUploadValidator>();
