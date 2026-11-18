@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace RAG.Domain.Entities
+﻿namespace RAG.Domain.Entities
 {
     public class UserDocument
     {
@@ -30,6 +26,16 @@ namespace RAG.Domain.Entities
         /// </summary>
         public string? ContentHash { get; set; }
 
+        public DocumentStatus Status { get; set; }
 
+
+    }
+
+    public enum DocumentStatus
+    {
+        Pending = 0,
+        Processing = 1,
+        Completed = 2,
+        Failed = 3
     }
 }
