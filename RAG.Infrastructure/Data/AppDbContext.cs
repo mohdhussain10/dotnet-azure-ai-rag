@@ -14,6 +14,8 @@ namespace RAG.Infrastructure.Data
 
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
+        public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

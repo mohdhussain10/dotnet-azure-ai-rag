@@ -7,6 +7,8 @@
 *.env
 *.env.*
 !*.env.example
+k8s/secret.yaml
+!k8s/secret.template.yaml
 
 ## =========================================================================
 ## 2. .NET Core & Visual Studio Build Outputs

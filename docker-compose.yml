@@ -2,6 +2,19 @@
 version: '3.8'
 
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:1567"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # this will help to restore messages even if we down docker container and started again
+    restart: always
+
   rag-api:
     container_name: rag-application-api
     #to get all the 3 projects. build context is the standard means root and can read all our project files

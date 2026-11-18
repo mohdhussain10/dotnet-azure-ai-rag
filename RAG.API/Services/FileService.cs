@@ -6,6 +6,7 @@ using RAG.Domain.Entities;
 using RAG.Infrastructure.Data;
 using System.Net;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace RAG.API.Services
 {
@@ -39,41 +40,26 @@ namespace RAG.API.Services
     public class FileService : IFileService
     {
         private readonly BlobContainerClient _containerClient;
-
         private readonly ILogger<FileService> _logger;
-
         private readonly ICurrentUserService _currentUserService;
-
         private readonly AppDbContext _dbContext;
 
-        private readonly ITextExtractorService _textExtractorService;
-        private readonly IChunkingService _chunkingService;
-
-        private readonly IEmbeddingService _embeddingService;
-
-        private readonly IAzureSearchService _azureSearchService;
-
-
-        public FileService(BlobContainerClient containerClient, ILogger<FileService> logger,
-            ICurrentUserService currentUserService, AppDbContext dbContext,
-            ITextExtractorService textExtractorService, IChunkingService chunkingService,
-            IEmbeddingService embeddingService, IAzureSearchService azureSearchService )
+        public FileService(
+            BlobContainerClient containerClient,
+            ILogger<FileService> logger,
+            ICurrentUserService currentUserService,
+            AppDbContext dbContext)
         {
             _containerClient = containerClient;
             _logger = logger;
             _currentUserService = currentUserService;
             _dbContext = dbContext;
-            _textExtractorService = textExtractorService;
-            _chunkingService = chunkingService;
-            _embeddingService = embeddingService;
-            _azureSearchService = azureSearchService;
         }
         public async Task<AuthResponse> Upload(IFormFile? file, CancellationToken cancellationToken = default)
         {
             var userId = _currentUserService.UserId;
             Guid? userDocumentId = null;
-            BlobClient? uploadedBlobClient = null;
-            var isChunksUploadedToAzureAI = false;
+           
             try
             {
                 #region Prequisites checks and variables declaration
@@ -99,111 +85,71 @@ namespace RAG.API.Services
                 {
                     return new AuthResponse(false, "Failed to upload file to storage.");
                 }
-                uploadedBlobClient = blobClient;
                 userDocumentId = documentId;
                 #endregion Azure blob upload
 
-                #region RAG Data Ingestion pipeline
-
-                #region Step1: Text Extraction
-                var extractedText = await _textExtractorService.ExtractTextAsync(memoryStream, fileExtension, cancellationToken);
-                #endregion
-
-                #region Step2: Text Chunking
-                var chunks = _chunkingService.CreateChunks(text: extractedText, chunkSize: 1000, chunkOverlap: 200);
-                
-                _logger.LogInformation("Document {FileName} generated {ChunkCount} chunks.", safeFileName, chunks.Count);
-                #endregion
-                if (chunks.Count > 0)
+                #region Write Document to DB + writing event to outbox event table
+                await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    #region Step3: Embedding all chunks (768-dimensional vector). Default for gemini embedding model
-                    var chunkTexts = chunks.Select(c => c.Content);
-                    IReadOnlyList<ReadOnlyMemory<float>> vectors = await
-                        _embeddingService.GenerateEmbeddingsAsync(chunkTexts, cancellationToken);
-                    _logger.LogInformation("Generated {VectorCount} vectors for {FileName}", vectors.Count, safeFileName);
-                    #endregion
-
-                    #region Step4: Insert vectors to Azure AI Search
-                    var searchChunks = new List<DocumentChunkModel>();
-                    for (int i = 0; i < chunks.Count; i++)
+                    var userDocument = new UserDocument
                     {
-                        searchChunks.Add(new DocumentChunkModel
-                        {
-                            Id = $"{documentId}_{i}",
-                            DocumentId = documentId.ToString(),
-                            UserId = userId.Value.ToString(),
-                            FileName = safeFileName!,
-                            Content = chunks[i].Content,
-                            ChunkIndex = i,
-                            ContentVector = vectors[i].ToArray()
-                        });
-                    }
+                        Id = documentId!.Value,
+                        UserId = userId.Value,
+                        FileName = safeFileName!,
+                        BlobUrl = blobClient!.Uri.ToString(),
+                        ChunkCount = 0,
+                        UploadedAt = DateTime.UtcNow,
+                        IsDeleted = false,
+                        DeletedAt = null,
+                        ContentHash = contentHash,
+                        Status = DocumentStatus.Pending
+                    };
 
-                    await _azureSearchService.InsertChunksAsync(searchChunks, cancellationToken);
+                    _dbContext.UserDocuments.Add(userDocument);
 
-                    isChunksUploadedToAzureAI = true;
-                    #endregion
+                    var eventPayload = JsonSerializer.Serialize(new FileUploadEventModel
+                    {
+                        DocumentId = userDocument.Id,
+                        UserId = userDocument.UserId,
+                        FileName = userDocument.FileName,
+                        BlobUrl = userDocument.BlobUrl,
+                        FileExtension = Path.GetExtension(file.FileName)
+                    });
+
+                    var outboxEvent = new OutboxEvent
+                    {
+                        AggregateId = userDocument.Id,
+                        EventType = "FileUploaded",
+                        PayloadJson = eventPayload,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _dbContext.OutboxEvents.Add(outboxEvent);
+
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+
+                    await transaction.CommitAsync(cancellationToken);
+
+                    return new AuthResponse(true, Data: new
+                    {
+                        documentId = userDocument.Id,
+                        fileName = safeFileName,
+                        status = DocumentStatus.Pending.ToString(),
+                        message = "File uploaded successfully. Processing started in background."
+                    });
                 }
-
-                #endregion Data Ingestion Pipeline
-
-                #region Database update
-                var userDocument = new UserDocument
+                catch(Exception ex)
                 {
-                    Id = documentId!.Value,
-                    UserId = userId.Value,
-                    FileName = safeFileName!,
-                    BlobUrl = blobClient!.Uri.ToString(),
-                    ChunkCount = chunks.Count,
-                    UploadedAt = DateTime.UtcNow,
-                    IsDeleted = false,
-                    DeletedAt = null,
-                    ContentHash = contentHash
-                };
-
-                _dbContext.UserDocuments.Add(userDocument);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-
+                    await transaction.RollbackAsync(cancellationToken);
+                    _logger.LogError(ex, "Transaction failed for user document {DocumentId}", documentId);
+                    return new AuthResponse(false, "Failed to initiate file processing.");
+                }
                 #endregion
-                return new AuthResponse(true, Data: new
-                {
-                    blobName = $"users/{userId}/{documentId:N}_{safeFileName}",
-                    originalFileName = safeFileName,
-                    url = blobClient.Uri.ToString(),
-                    size = file.Length,
-                    uploadedAt = DateTime.UtcNow
-                });
-                
             }
             catch(Exception ex)
             {
                 _logger.LogError(ex, "Failed to upload file for user {UserId}", userId);
-
-                //Rollback 1: Delete chunks from Azure AI search if it is inserted
-                if(isChunksUploadedToAzureAI && userDocumentId.HasValue)
-                {
-                    try
-                    {
-                        _logger.LogWarning("Rolling back: Deleting chunks from Azure AI Search for document {DocumentId}", userDocumentId.Value);
-                        await _azureSearchService.DeleteChunksByDocumentIdAsync(userDocumentId.Value, cancellationToken);
-                    }
-                    catch(Exception azureSearchDeleteEx)
-                    {
-                        _logger.LogError(azureSearchDeleteEx, "Failed to delete Azure Search chunks during rollback for document {DocumentId}", userDocumentId.Value);
-                    }
-                }
-                if(uploadedBlobClient != null && userDocumentId.HasValue)
-                {
-                    try
-                    {
-                        _logger.LogWarning("Rolling back: Deleting blob {BlobUri} from Azure Blob Storage", uploadedBlobClient.Uri);
-                        await uploadedBlobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
-                    }
-                    catch (Exception blobEx)
-                    {
-                        _logger.LogError(blobEx, "Failed to delete blob during rollback: {BlobUri}", uploadedBlobClient.Uri);
-                    }
-                }
                 return new AuthResponse(false, "Failed to upload file. Please try again.");
             }
         }
